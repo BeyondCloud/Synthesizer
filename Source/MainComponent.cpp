@@ -19,7 +19,9 @@ public:
 	//==============================================================================
 	MainContentComponent()
 		: phase(0.0f),
+		phase2(0.0f),
 		phaseDelta(0.0f),
+		phaseDelta2(0.0f),
 		frequency(5000.0f),
 		amplitude(0.2f),
 		sampleRate(0.0),
@@ -51,19 +53,25 @@ public:
 	{
 		bufferToFill.clearActiveBufferRegion();
 		const float originalPhase = phase;
+		const float originalPhase2 = phase2;
 
 		for (int chan = 0; chan < bufferToFill.buffer->getNumChannels(); ++chan)
 		{
 			phase = originalPhase;
 
+			phase2 = originalPhase2;
+
+
 			float* const channelData = bufferToFill.buffer->getWritePointer(chan, bufferToFill.startSample);
 
 			for (int i = 0; i < bufferToFill.numSamples; ++i) //numSamples = 480
 			{
-				channelData[i] = amplitude * std::sin(phase);
+				channelData[i] = amplitude * (std::sin(phase) + std::sin(phase2));
 
 				// increment the phase step for the next sample
 				phase = std::fmod(phase + phaseDelta, float_Pi * 2.0f);
+				phase2 = std::fmod(phase2 + phaseDelta2, float_Pi * 2.0f);
+
 			}
 		}
 	}
@@ -105,7 +113,7 @@ public:
 		g.setColour(Colours::yellow);
 		g.setFont(14.0f);
 		g.drawText(juce::String(frequency), 20, 40, 200, 40, true);
-		for (int i = 0; i <13; i++)
+		for (int i = 0; i < 13; i++)
 			g.drawText(toneName[i], toneFreq[i] / xScale - fixX, 40, 30, 40, true);
 
 	}
@@ -120,10 +128,14 @@ public:
 	{
 		lastMousePosition = e.position;
 
-		    frequency = (e.x ) * xScale ;
+		frequency = (e.x) * xScale;
+		frequency2 = (e.x + 136) * xScale;
+
+
 		amplitude = jmin(0.2f, 0.2f - 0.2f * e.position.y / getHeight());
 
 		phaseDelta = (float)(2.0 * double_Pi * frequency / sampleRate);
+		phaseDelta2 = (float)(2.0 * double_Pi * frequency2 / sampleRate);
 
 		repaint();
 	}
@@ -144,9 +156,9 @@ public:
 
 private:
 	//==============================================================================
-	float phase;
-	float phaseDelta;
-	float frequency;
+	float phase , phase2;
+	float phaseDelta, phaseDelta2;
+	float frequency, frequency2;
 	float amplitude;
 	double sampleRate;
 	float xScale = 0.5f; // x distance between two note,the smaller the wider
