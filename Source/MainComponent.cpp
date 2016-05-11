@@ -11,22 +11,23 @@ This file was auto-generated!
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
-
+#define MAX_TOUCH 2
 //==============================================================================
 class MainContentComponent : public AudioAppComponent
 {
 public:
 	//==============================================================================
 	MainContentComponent()
-		: phase(0.0f),
-		phase2(0.0f),
-		phaseDelta(0.0f),
-		phaseDelta2(0.0f),
-		frequency(5000.0f),
-		amplitude(0.2f),
+		:amplitude(0.2f),
 		sampleRate(0.0),
 		expectedSamplesPerBlock(0)
 	{
+		for (int i = 0; i < MAX_TOUCH; i++)
+		{
+			phase[i] = 0;
+			phaseDelta[i] = 0;
+			frequency[i] = 5000;
+		}
 		setSize(800, 600);
 
 		// specify the number of input and output channels that we want to open
@@ -52,26 +53,26 @@ public:
 	void getNextAudioBlock(const AudioSourceChannelInfo& bufferToFill) override
 	{
 		bufferToFill.clearActiveBufferRegion();
-		const float originalPhase = phase;
-		const float originalPhase2 = phase2;
+		const float originalPhase = phase[0];
+		const float originalPhase2 = phase[1];
 
 		for (int chan = 0; chan < bufferToFill.buffer->getNumChannels(); ++chan)
 		{
-			phase = originalPhase;
+			phase[0] = originalPhase;
 
-			phase2 = originalPhase2;
+			phase[1] = originalPhase2;
 
 
 			float* const channelData = bufferToFill.buffer->getWritePointer(chan, bufferToFill.startSample);
 
 			for (int i = 0; i < bufferToFill.numSamples; ++i) //numSamples = 480
 			{
-				channelData[i] = amplitude * (std::sin(phase) + std::sin(phase2));
+				channelData[i] = amplitude * (std::sin(phase[0]) + std::sin(phase[1]));
 
 				// increment the phase step for the next sample
-				phase = std::fmod(phase + phaseDelta, float_Pi * 2.0f);
-				phase2 = std::fmod(phase2 + phaseDelta2, float_Pi * 2.0f);
-
+				for (int k = 0; k < MAX_TOUCH; k++)
+					phase[k] = std::fmod(phase[k] + phaseDelta[k], float_Pi * 2.0f);
+				
 			}
 		}
 	}
@@ -104,7 +105,7 @@ public:
 
 		for (float x = 1.0f; x < getWidth(); ++x)
 			wavePath.lineTo(x, centreY + amplitude * getHeight() * 2.0f
-				* std::sin(x * frequency * 0.0001f));
+				* std::sin(x * frequency[0] * 0.0001f));
 		g.setColour(Colours::mediumpurple);
 		g.strokePath(wavePath, PathStrokeType(2.0f));
 
@@ -112,7 +113,7 @@ public:
 
 		g.setColour(Colours::yellow);
 		g.setFont(14.0f);
-		g.drawText(juce::String(frequency), 20, 40, 200, 40, true);
+		g.drawText(juce::String(frequency[0]), 20, 40, 200, 40, true);
 		for (int i = 0; i < 13; i++)
 			g.drawText(toneName[i], toneFreq[i] / xScale - fixX, 40, 30, 40, true);
 
@@ -128,15 +129,14 @@ public:
 	{
 		lastMousePosition = e.position;
 
-		frequency = (e.x) * xScale;
-		frequency2 = (e.x + 136) * xScale;
+		frequency[0] = (e.x) * xScale;
+		frequency[1] = (e.x + 136) * xScale;
 
 
 		amplitude = jmin(0.2f, 0.2f - 0.2f * e.position.y / getHeight());
-
-		phaseDelta = (float)(2.0 * double_Pi * frequency / sampleRate);
-		phaseDelta2 = (float)(2.0 * double_Pi * frequency2 / sampleRate);
-
+		for (int i = 0; i < MAX_TOUCH; i++)
+			phaseDelta[i] = (float)(2.0 * double_Pi * frequency[i] / sampleRate);
+		
 		repaint();
 	}
 
@@ -156,9 +156,9 @@ public:
 
 private:
 	//==============================================================================
-	float phase , phase2;
-	float phaseDelta, phaseDelta2;
-	float frequency, frequency2;
+	float phase[MAX_TOUCH] ;
+	float phaseDelta[MAX_TOUCH];
+	float frequency[MAX_TOUCH];
 	float amplitude;
 	double sampleRate;
 	float xScale = 0.5f; // x distance between two note,the smaller the wider
