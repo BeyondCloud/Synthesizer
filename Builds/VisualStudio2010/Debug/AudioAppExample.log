@@ -1,3 +1,6 @@
 ﻿  MainComponent.cpp
-e:\juce_4_2_1\examples\audioappexample\source\maincomponent.cpp(118): warning C4244: '引數': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
+e:\juce_4_2_1\examples\audioappexample\source\maincomponent.cpp(129): warning C4244: '引數': 將 'float' 轉換為 'int'，由於類型不同，可能導致資料遺失
+e:\juce_4_2_1\examples\audioappexample\source\maincomponent.cpp(169): warning C4244: '引數': 將 'int' 轉換為 'float'，由於類型不同，可能導致資料遺失
+e:\juce_4_2_1\examples\audioappexample\source\maincomponent.cpp(179): warning C4456: 'i' 的宣告會隱藏先前的區域宣告
+  e:\juce_4_2_1\examples\audioappexample\source\maincomponent.cpp(171): note: 請參閱 'i' 的宣告
   AudioAppExample.vcxproj -> E:\JUCE_4_2_1\examples\AudioAppExample\Builds\VisualStudio2010\Debug\AudioAppExample.exe

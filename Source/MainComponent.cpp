@@ -5,33 +5,44 @@ This file was auto-generated!
 
 ==============================================================================
 */
+#include "../JuceLibraryCode/JuceHeader.h"
+#include "ShareMem.h"
 
 #ifndef MAINCOMPONENT_H_INCLUDED
 #define MAINCOMPONENT_H_INCLUDED
-
-#include "../JuceLibraryCode/JuceHeader.h"
-
 #define MAX_TOUCH 2
+TCHAR szName[] = TEXT("bitmap");
+struct blob {
+	int x = 0;
+	int y = 0;
+	int size = 0;
+};
+ShareMem sh(szName);
+blob* MemPtr = (blob *)sh.readMem();
+blob blobGroup[10];
+
 //==============================================================================
 class MainContentComponent : public AudioAppComponent
+							,public Timer
 {
 public:
 	//==============================================================================
 	MainContentComponent()
-		:amplitude(0.2f),
-		sampleRate(0.0),
+		:sampleRate(0.0),
 		expectedSamplesPerBlock(0)
 	{
 		for (int i = 0; i < MAX_TOUCH; i++)
 		{
-			phase[i] = 0;
-			phaseDelta[i] = 0;
-			frequency[i] = 5000;
+			note[i].phase = 0;
+			note[i].phaseDelta = 0;
+			note[i].frequency = 5000;
+			note[i].amplitude = 0.2f;
 		}
 		setSize(800, 600);
 
 		// specify the number of input and output channels that we want to open
 		setAudioChannels(0, 2);
+	//	startTimer(1);
 	}
 
 	~MainContentComponent()
@@ -52,31 +63,31 @@ public:
 	*/
 	void getNextAudioBlock(const AudioSourceChannelInfo& bufferToFill) override
 	{
+		
 		bufferToFill.clearActiveBufferRegion();
-		const float originalPhase = phase[0];
-		const float originalPhase2 = phase[1];
-
+		for (int i = 0; i < MAX_TOUCH; i++)
+			note[i].originalPhase = note[i].phase;
+		
 		for (int chan = 0; chan < bufferToFill.buffer->getNumChannels(); ++chan)
 		{
-			phase[0] = originalPhase;
-
-			phase[1] = originalPhase2;
-
+			for (int i = 0; i < MAX_TOUCH; i++)
+				note[i].phase = note[i].originalPhase;
 
 			float* const channelData = bufferToFill.buffer->getWritePointer(chan, bufferToFill.startSample);
 
 			for (int i = 0; i < bufferToFill.numSamples; ++i) //numSamples = 480
 			{
-				channelData[i] = amplitude * (std::sin(phase[0]) + std::sin(phase[1]));
-
 				// increment the phase step for the next sample
 				for (int k = 0; k < MAX_TOUCH; k++)
-					phase[k] = std::fmod(phase[k] + phaseDelta[k], float_Pi * 2.0f);
+				{
+					channelData[i] += note[k].amplitude * (std::sin(note[k].phase));
+					note[k].phase = std::fmod(note[k].phase + note[k].phaseDelta, float_Pi * 2.0f);
+				}
 				
 			}
 		}
 	}
-
+	
 	void releaseResources() override
 	{
 		// This gets automatically called when audio device parameters change
@@ -91,7 +102,7 @@ public:
 		g.fillAll(Colours::black);
 
 		const float centreY = getHeight() / 2.0f;
-		const float radius = amplitude * 200.0f;
+		const float radius = note[0].amplitude * 200.0f;
 
 		// Draw an ellipse based on the mouse position and audio volume
 		g.setColour(Colours::lightgreen);
@@ -104,16 +115,16 @@ public:
 		wavePath.startNewSubPath(0, centreY);
 
 		for (float x = 1.0f; x < getWidth(); ++x)
-			wavePath.lineTo(x, centreY + amplitude * getHeight() * 2.0f
-				* std::sin(x * frequency[0] * 0.0001f));
+			wavePath.lineTo(x, centreY + note[0].amplitude * getHeight() * 2.0f
+				* std::sin(x * note[0].frequency * 0.0001f));
 		g.setColour(Colours::mediumpurple);
 		g.strokePath(wavePath, PathStrokeType(2.0f));
-
-
-
 		g.setColour(Colours::yellow);
 		g.setFont(14.0f);
-		g.drawText(juce::String(frequency[0]), 20, 40, 200, 40, true);
+		g.drawText(juce::String(note[0].amplitude), 20, 40, 200, 40, true);
+
+		g.drawText(juce::String(blobGroup[0].size), 80, 80, 200, 40, true);
+		
 		for (int i = 0; i < 13; i++)
 			g.drawText(toneName[i], toneFreq[i] / xScale - fixX, 40, 30, 40, true);
 
@@ -124,25 +135,62 @@ public:
 	{
 		mouseDrag(e);
 	}
+	void timerCallback() override 
+	{
+		updatePosition();
+	}
 
+	
 	void mouseDrag(const MouseEvent& e) override
 	{
 		lastMousePosition = e.position;
-
-		frequency[0] = (e.x) * xScale;
-		frequency[1] = (e.x + 136) * xScale;
+		note[0].frequency = (e.x) * xScale;
 
 
-		amplitude = jmin(0.2f, 0.2f - 0.2f * e.position.y / getHeight());
+
+		note[0].amplitude = jmin(0.2f, 0.2f - 0.2f * e.position.y / getHeight());
+
 		for (int i = 0; i < MAX_TOUCH; i++)
-			phaseDelta[i] = (float)(2.0 * double_Pi * frequency[i] / sampleRate);
+		{
+			note[i].phaseDelta = (float)(2.0 * double_Pi * note[i].frequency / sampleRate);
+		}
+		for (int i = 1; i < MAX_TOUCH; i++)
+		{
+			note[i].amplitude = 0;
+		}
 		
 		repaint();
 	}
+	
+	void updatePosition() 
+	{
+		if (MemPtr != NULL)
+		{
+			lastMousePosition = Point<float>(blobGroup[0].x, blobGroup[0].y);
 
+			for (int i = 0; i < MAX_TOUCH; i++)
+			{
+				blobGroup[i] = *(MemPtr + i);
+				if (blobGroup[i].size != 0)
+				{
+					note[i].frequency = (blobGroup[i].x) * xScale + 100;
+					float temp = 0.2f - 0.2f * blobGroup[i].y / getHeight();
+					note[i].amplitude = 0.2f > temp ? temp : 0.2f;
+					for (int i = 0; i < MAX_TOUCH; i++)
+						note[i].phaseDelta = (float)(2.0 * double_Pi * note[i].frequency / sampleRate);
+					repaint();
+				}
+				else
+				{
+					note[i].amplitude = 0.0f;
+					repaint();
+				}
+			}
+		}
+	}
 	void mouseUp(const MouseEvent&) override
 	{
-		amplitude = 0.0f;
+		note[0].amplitude = 0.0f;
 		repaint();
 	}
 
@@ -156,17 +204,23 @@ public:
 
 private:
 	//==============================================================================
-	float phase[MAX_TOUCH] ;
-	float phaseDelta[MAX_TOUCH];
-	float frequency[MAX_TOUCH];
-	float amplitude;
+	
 	double sampleRate;
-	float xScale = 0.5f; // x distance between two note,the smaller the wider
+	float xScale = 1.0f; // x distance between two note,the smaller the wider
 	int fixX = 3; // shift left 
 	int expectedSamplesPerBlock;
 	int toneFreq[13] = { 261,277,293,311,329,349,369,392,415,440,466,493,523 };
 	String toneName[13] = { "C4","C4#","D4","D4#","E4","F4","F4#","G4","G#4","A4","A4#","B4","C5" };
 	Point<float> lastMousePosition;
+	struct note_t 
+	{
+		float phase;
+		float phaseDelta;
+		float frequency;
+		float originalPhase;
+		float amplitude;
+	};
+	note_t note[MAX_TOUCH];
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)
 };
